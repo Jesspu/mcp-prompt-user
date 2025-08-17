@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"github.com/Jesspu/mcp-prompt-user/tui"
@@ -20,37 +19,33 @@ func RegisterPromptUserTool(mcpServer *server.MCPServer) {
 		"promptUser",
 		mcp.WithDescription("Prompts the user with a question asking for more context."),
 		mcp.WithString("prompt", mcp.Description("The question to prompt the user with."), mcp.Required()),
+		mcp.WithDestructiveHintAnnotation(false),
+		mcp.WithReadOnlyHintAnnotation(true),
 	)
 
 	mcpServer.AddTool(promptUserSchema, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		log.Println("promptUser tool called")
 		prompt, ok := req.GetArguments()["prompt"].(string)
 		if !ok {
-			log.Println("Error: missing prompt argument")
 			return mcp.NewToolResultError("missing prompt argument"), nil
 		}
 
 		progressTokenValue := req.Params.Meta.ProgressToken
 		if progressTokenValue == nil {
 			// No progress token, so we'll just block and wait for the answer.
-			log.Printf("Prompting user with: %s", prompt)
 			answer, err := tui.RunPrompt(prompt)
 			if err != nil {
-				log.Printf("Error from RunPrompt: %v", err)
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			log.Printf("Received answer from user: %s", answer)
 			return mcp.NewToolResultText(answer), nil
 		}
 
 		resultChan := make(chan promptResult)
 		go func() {
-			log.Printf("Prompting user with: %s", prompt)
 			answer, err := tui.RunPrompt(prompt)
 			resultChan <- promptResult{answer, err}
 		}()
 
-		ticker := time.NewTicker(2 * time.Second)
+		ticker := time.NewTicker(5 * time.Second)
 		defer ticker.Stop()
 
 		session := server.ClientSessionFromContext(ctx)
@@ -59,22 +54,20 @@ func RegisterPromptUserTool(mcpServer *server.MCPServer) {
 		}
 
 		curProgress := 1
+		totalProgress := 100
 		for {
 			select {
 			case result := <-resultChan:
 				if result.err != nil {
-					log.Printf("Error from RunPrompt: %v", result.err)
 					return mcp.NewToolResultError(result.err.Error()), nil
 				}
-				log.Printf("Received answer from user: %s", result.answer)
 				return mcp.NewToolResultText(result.answer), nil
 			case <-ticker.C:
 				curProgress = curProgress + 1
-				log.Println("Sending progress notification")
 				mcpServer.SendNotificationToClient(ctx, "notifications/progress", map[string]any{
 					"progressToken": progressTokenValue,
 					"progress":      curProgress,
-					"total":         100,
+					"total":         totalProgress,
 					"message":       "Waiting for user input...",
 				})
 			}
