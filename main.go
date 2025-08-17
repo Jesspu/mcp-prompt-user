@@ -20,19 +20,32 @@ func main() {
 	)
 
 	mcpServer.AddTool(promptUserSchema, func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		log.Println("promptUser tool called")
 		prompt, ok := req.GetArguments()["prompt"].(string)
 		if !ok {
+			log.Println("Error: missing prompt argument")
 			return mcp.NewToolResultError("missing prompt argument"), nil
 		}
-		log.Printf("Prompting user: %s", prompt)
-		return mcp.NewToolResultText("ok"), nil
+
+		log.Printf("Prompting user with: %s", prompt)
+		answer, err := RunPrompt(prompt)
+		if err != nil {
+			log.Printf("Error from RunPrompt: %v", err)
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+
+		log.Printf("Received answer from user: %s", answer)
+		result := mcp.NewToolResultText(answer)
+		log.Println("Returning result to the agent")
+
+		return result, nil
 	})
 
 	// Resources
 	promptUserResource := mcp.NewResource("promptUser.md", "promptUser tool documentation", mcp.WithResourceDescription("Tool definition and documentation for the promptUser tool."), mcp.WithMIMEType("text/markdown"))
 
 	mcpServer.AddResource(promptUserResource, func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
-		content, err := os.ReadFile("README.md")
+		content, err := os.ReadFile("promptUser.md")
 		if err != nil {
 			return nil, err
 		}
