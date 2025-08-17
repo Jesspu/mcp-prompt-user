@@ -8,11 +8,11 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-func RegisterPromptUserDocResource(mcpServer *server.MCPServer) {
+func RegisterPromptUserDocResource(mcpServer *server.MCPServer, docPath string) {
 	promptUserResource := mcp.NewResource("promptUser.md", "promptUser tool documentation", mcp.WithResourceDescription("Tool definition and documentation for the promptUser tool."), mcp.WithMIMEType("text/markdown"))
 
 	mcpServer.AddResource(promptUserResource, func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
-		content, err := os.ReadFile("promptUser.md")
+		content, err := os.ReadFile(docPath)
 		if err != nil {
 			return nil, err
 		}

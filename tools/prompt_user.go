@@ -9,6 +9,8 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
+const progressTickerDuration = 5 * time.Second
+
 type promptResult struct {
 	answer string
 	err    error
@@ -29,23 +31,27 @@ func RegisterPromptUserTool(mcpServer *server.MCPServer) {
 			return mcp.NewToolResultError("missing prompt argument"), nil
 		}
 
-		progressTokenValue := req.Params.Meta.ProgressToken
-		if progressTokenValue == nil {
-			// No progress token, so we'll just block and wait for the answer.
-			answer, err := tui.RunPrompt(prompt)
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			return mcp.NewToolResultText(answer), nil
-		}
-
 		resultChan := make(chan promptResult)
 		go func() {
-			answer, err := tui.RunPrompt(prompt)
+			answer, err := tui.RunPrompt(ctx, prompt)
 			resultChan <- promptResult{answer, err}
 		}()
 
-		ticker := time.NewTicker(5 * time.Second)
+		progressTokenValue := req.Params.Meta.ProgressToken
+		if progressTokenValue == nil {
+			// No progress token, so we'll just block and wait for the answer.
+			select {
+			case result := <-resultChan:
+				if result.err != nil {
+					return mcp.NewToolResultError(result.err.Error()), nil
+				}
+				return mcp.NewToolResultText(result.answer), nil
+			case <-ctx.Done():
+				return mcp.NewToolResultError("prompt cancelled"), nil
+			}
+		}
+
+		ticker := time.NewTicker(progressTickerDuration)
 		defer ticker.Stop()
 
 		session := server.ClientSessionFromContext(ctx)
@@ -70,6 +76,8 @@ func RegisterPromptUserTool(mcpServer *server.MCPServer) {
 					"total":         totalProgress,
 					"message":       "Waiting for user input...",
 				})
+			case <-ctx.Done():
+				return mcp.NewToolResultError("prompt cancelled"), nil
 			}
 		}
 	})

@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -9,35 +10,20 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-var (
-	titleStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#FAFAFA")).
-			Background(lipgloss.Color("#7D56F4")).
-			Padding(0, 1)
-
-	promptStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#F8F8F8")).
-			Padding(1, 0, 0, 0)
-
-	containerStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#7D56F4")).
-			Padding(1, 2)
-
-	instructionsStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("240")).
-				Padding(1, 0)
-)
-
-func RunPrompt(prompt string) (string, error) {
+func RunPrompt(ctx context.Context, prompt string) (string, error) {
 	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
 	if err != nil {
 		return "", err
 	}
 	defer tty.Close()
 
-	p := tea.NewProgram(initialModel(prompt), tea.WithInput(tty), tea.WithOutput(tty), tea.WithAltScreen())
+	p := tea.NewProgram(
+		initialModel(prompt),
+		tea.WithInput(tty),
+		tea.WithOutput(tty),
+		tea.WithAltScreen(),
+		tea.WithContext(ctx),
+	)
 
 	m, err := p.Run()
 	if err != nil {
@@ -123,9 +109,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	title := titleStyle.Render("User Input Required")
-	prompt := promptStyle.Render(m.prompt)
-	instructions := instructionsStyle.Render("Press Enter to submit, Esc to cancel")
+	title := TitleStyle.Render("User Input Required")
+	prompt := PromptStyle.Render(m.prompt)
+	instructions := InstructionsStyle.Render("Press Enter to submit, Esc to cancel")
 
 	ui := lipgloss.JoinVertical(lipgloss.Left,
 		title,
@@ -134,7 +120,7 @@ func (m model) View() string {
 		instructions,
 	)
 
-	borderedUI := containerStyle.Render(ui)
+	borderedUI := ContainerStyle.Render(ui)
 
 	return lipgloss.Place(
 		m.width, m.height,
