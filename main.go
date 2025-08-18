@@ -15,7 +15,7 @@ func main() {
 	tools.RegisterPromptUserTool(mcpServer)
 
 	// Resources
-	resources.RegisterPromptUserDocResource(mcpServer, "promptUser.md")
+	resources.RegisterPromptUserDocResource(mcpServer, "/resources/promptUser.md")
 
 	if err := server.ServeStdio(mcpServer); err != nil {
 		log.Fatalf("failed to serve: %v", err)
