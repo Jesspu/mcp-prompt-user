@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	mcpServer := server.NewMCPServer("mcp-prompt-user", "1.0.0", server.WithToolCapabilities(true))
+	mcpServer := server.NewMCPServer("mcp-prompt-user", "1.0.0", server.WithToolCapabilities(true), server.WithInstructions("Welcome! Please read the `promptUser.md` resource to learn how to use the available tools."))
 
 	// Tools
 	tools.RegisterPromptUserTool(mcpServer)
